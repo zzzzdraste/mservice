@@ -1,0 +1,99 @@
+{
+    "_comment": "this is a name of microservice that is used for Etcd registration",
+    "name": "/my_MS/endpoint",
+
+    "_comment": "for discovery purposes, the TTL could be sent, the negative value means no TTL/expiration time, no ZERO value allowed",
+    "ttl": 30,
+
+    "_comment": "this attribute stores the version of the MS code",
+    "version": "1.0.1", 
+
+    "_comment": "provide server ip/hostname for accespting incoming connections",
+    "http_server_host" : "localhost",
+
+    "_comment": "provide port, if not provided the :http will be used by the underlying Server implementation, refer to http.Server for details",
+    "http_server_port" : "8080",
+
+    "_comment": "read timeout is the max time is should take to parse the request (body included) by the server before timing out",
+    "http_server_read_timeout" : 5,
+
+    "_comment": "max time it should take for the server to generate the response",
+    "http_server_write_timeout": 5,
+
+    "_comment": "configuration of the logger - need to set the io.Writer (io.Stdout, io.Stderr, ioutil.Discard) handlers for each logging level",
+    "logger": {
+        "Trace": "ioutil.Discard",
+        "Info": "ioutil.Discard",
+        "Warning": "ioutil.Discard",
+        "Error": "io.Stdout"
+    },
+
+    "_comment": "list of endpoints that are to be exposed by the service, the attribute allows to select the subset of what's available overall",
+    "endpoints": {
+
+        "_comment": "general section, normally non-service related, like help or ping",
+        "general": ["/help/", "/version/"],
+        
+        "_comment": "Etcd section for the endpoints for Etcd driver",
+        "etcd": ["/etcdVersion/", "/etcdSet/", "/etcdGet/", "/etcdMembers/"],
+
+        "_comment": "service related endpoint(s), this is what the external systems would normally call",
+        "service": ["/order/"]
+
+    },
+
+    "_comment": "configuration section for the service",
+    "service": {
+        "_comment": "redis server host",
+        "redis_server_ip": "172.17.0.4",
+        
+        "_comment": "redis server port",
+        "redis_server_port": "6379",
+
+        "_comment": "the attrib below stores the name of the ZSET to be used to keep the orders and respective scores",
+        "redis_server_order_set": "ZORDERSET",
+
+        "_comment": "the attrib for the list as to where the orders ready for processing are to be moved",
+        "redis_server_order_list": "LORDERLIST",
+
+        "_comment": "wait time between attempts to check on the orders that reached dd",
+        "order_check_wait_time": 300
+
+    },
+
+    "_comment": "configuration section for the Etcd cluster connectivity",
+    "etcd": {
+        "connection": {
+            "_comment": "maximum number of idle connections to the Etcd server within a cluster",
+            "max_idle_conns": 1,
+
+            "_comment": "timeout for idle connections before disconnect is issued", 
+            "idle_conn_timeout": 600,
+
+            "_comment": "timeout value for the active session to the Etcd server",
+            "timeout": 30
+        },
+        "_comment": "this attribute defines the time between the cluster state update calls",
+        "sleep_between_attempts": 10,
+
+        "_comment": "this attribute defines number of re-try attempts to reach to Etcd cluster before failing entierly",
+        "number_retries": 3,
+
+        "_comment": "section for cluster configuration, in case of a stand-alone server, only has to contain one server instance",
+        "cluster": {
+            "_comment": "list of servers, each containing an array of client and server endpoints (http://host:port)",
+            "servers": [
+                {
+                    "client_endpoints": ["http://172.17.0.2:2379"],
+                    "server_endpoints": ["http://172.17.0.2:2380"]
+                },
+                {
+                    "client_endpoints": ["http://172.17.0.3:23791"],
+                    "server_endpoints": ["http://172.17.0.3:23801"]
+                }
+            ]
+        }
+
+    }
+
+}
