@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	helpTemplate     *template.Template
-	numberOfRequests = expvar.NewInt("numberOfRequests")
-	numberOfErrors   = expvar.NewInt("numberOfErrors")
+	helpTemplate            *template.Template
+	numberOfRequests        = expvar.NewInt("number_of_requests")
+	numberOfErrors          = expvar.NewInt("number_of_errors")
+	numberOfSuccessResponse = expvar.NewInt("number_of_success_responses")
 )
 
 func init() {
@@ -103,6 +104,19 @@ func generateErrorPayload(id string, errorCode int, err error) []byte {
 	return output
 }
 
+func generateReponsePayload(id string, reponseCode int, msg string) []byte {
+	numberOfSuccessResponse.Add(1)
+
+	reponsePayload := common.ResponsePayload{
+		TransactionID: id,
+		Status:        reponseCode,
+		Message:       msg,
+	}
+
+	output, _ := json.MarshalIndent(reponsePayload, "", "    ")
+	return output
+}
+
 // parseTransactionID is a function to substring the URL and lookup for the transaction ID portion
 // returns N/A if no ID present
 func parseTransactionID(url string) string {
@@ -168,6 +182,11 @@ func NewOrderService(logger myLog.LevelLogger, config *common.Config) http.Handl
 		}
 
 		redisClient.Conn.Close()
+
+		// sending the output
+		output := generateReponsePayload(transID, http.StatusCreated, "Order successfully created")
+		logger.Trace.Printf("http server: sending 201 Created response to the caller\n")
+		w.Write(output)
 	}
 }
 
