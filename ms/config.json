@@ -18,14 +18,14 @@
     "http_server_read_timeout" : 5,
 
     "_comment": "max time it should take for the server to generate the response",
-    "http_server_write_timeout": 5,
+    "http_server_write_timeout": 300,
 
-    "_comment": "configuration of the logger - need to set the io.Writer (io.Stdout, io.Stderr, ioutil.Discard) handlers for each logging level",
+    "_comment": "configuration of the logger - need to set the io.Writer (os.Stdout, os.Stderr, ioutil.Discard) handlers for each logging level",
     "logger": {
-        "Trace": "ioutil.Discard",
-        "Info": "ioutil.Discard",
+        "Trace": "os.Stdout",
+        "Info": "os.Stdout",
         "Warning": "ioutil.Discard",
-        "Error": "io.Stdout"
+        "Error": "os.Stdout"
     },
 
     "_comment": "list of endpoints that are to be exposed by the service, the attribute allows to select the subset of what's available overall",
@@ -44,11 +44,11 @@
 
     "_comment": "configuration section for the service",
     "service": {
-        "_comment": "redis server host",
-        "redis_server_ip": "172.17.0.4",
+        "_comment": "redis server host in Etcd",
+        "redis_server_ip": "/redis/ip",
         
-        "_comment": "redis server port",
-        "redis_server_port": "6379",
+        "_comment": "redis server port key in Etcd",
+        "redis_server_port": "/redis/port",
 
         "_comment": "the attrib below stores the name of the ZSET to be used to keep the orders and respective scores",
         "redis_server_order_set": "ZORDERSET",

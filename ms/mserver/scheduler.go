@@ -132,6 +132,7 @@ func dueDateOrders(ch chan redis.Marshaller, errCh chan error, config *common.Co
 	}
 }
 
+// unmarshalTheResponse unmarshal the raw data from the byte array and returns resulting object
 func unmarshalTheResponse(data []byte) (redis.Marshaller, error) {
 	val, err := redis.Unmarshal(data)
 	return val, err

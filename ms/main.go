@@ -7,7 +7,9 @@ import (
 	customLog "ms/log"
 	"ms/mserver"
 	"net/http"
+	_ "net/http/pprof"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -46,8 +48,16 @@ func main() {
 		panic(fmt.Errorf("connection to Etcd cluster failed, no server is reachable"))
 	}
 
+	// register microservice and ensure it is refreshed in Etcd
 	chEtcdReg := make(chan error)
 	registerMS(cluster, chEtcdReg)
+
+	// start goroutine to update the Redis info
+	chRedisEtcdRefresh := make(chan error)
+	initFinished := make(chan bool)
+	updateRedisClient(cluster, chRedisEtcdRefresh, initFinished)
+	finished := <-initFinished
+	logger.Info.Printf("initialization of the Etcd and service discovery is successful, ready to start HTTP server: %v\n", finished)
 
 	logger.Info.Printf("starting the HTTP server for accepting incoming requests on %v:%v\n", config.HTTPServerHost, config.HTTPServerPort)
 	httpServer := mserver.GetHTTPServer(
@@ -83,6 +93,8 @@ func main() {
 			panic(serverStatusErr)
 		case etcdMSRegistrationErr := <-chEtcdReg:
 			panic(etcdMSRegistrationErr)
+		case RedisEtcdRefreshErr := <-chRedisEtcdRefresh:
+			panic(RedisEtcdRefreshErr)
 		}
 	}
 }
@@ -158,6 +170,56 @@ func startSchedulerService() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// updateRedisClient is a goroutine to Get the Redis host and port from Etcd and update the config with the new values
+// this will allow to ensure that if Redis changes, the new endpoint details are reflected and used by client Constructor
+func updateRedisClient(c *common.Cluster, ch chan error, init chan bool) {
+	logger.Info.Println("redis refresher: routine started to check on the Etcd-stored redis host and port")
+
+	go func() {
+		var mux sync.RWMutex
+		for {
+			server, _ := c.GetRandomServer()
+			hostArr, err := server.Get(config.Service.RedisEtcdHost, false)
+			if err != nil {
+				ch <- err
+			}
+			var host common.EtcdGetCommandResponse
+			err = common.Convert(hostArr, &host)
+			if err != nil {
+				ch <- err
+			}
+
+			portArr, err := server.Get(config.Service.RedisEtcdPort, false)
+			if err != nil {
+				ch <- err
+			}
+			var port common.EtcdGetCommandResponse
+			err = common.Convert(portArr, &port)
+			if err != nil {
+				ch <- err
+			}
+
+			if host.Node.Value != config.Service.RedisHost {
+				logger.Trace.Printf("redis refresher: new host discovered \"%v\", was \"%v\"\n", host.Node.Value, config.Service.RedisHost)
+				mux.RLock()
+				defer mux.RUnlock()
+				config.Service.RedisHost = host.Node.Value
+			}
+
+			if port.Node.Value != config.Service.RedisPort {
+				logger.Trace.Printf("redis refresher: new port discovered \"%v\", was \"%v\"\n", port.Node.Value, config.Service.RedisPort)
+				mux.RLock()
+				defer mux.RUnlock()
+				config.Service.RedisPort = port.Node.Value
+			}
+
+			init <- true
+			time.Sleep(30 * time.Second)
+		}
+	}()
+
 }
 
 // recoverFromPanic allows to gracefully recover (if needed) from the panic state and not to fail with trace

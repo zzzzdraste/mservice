@@ -32,8 +32,8 @@ type LevelLogger struct {
 // Error   := log.New(os.Stderr, "ERROR : ", log.LstdFlags|log.Lshortfile)
 func InitLogger(traceHandle, infoHandle, warningHandle, errorHandle string) LevelLogger {
 	mapping := map[string]io.Writer{
-		"io.Stdout":      os.Stdout,
-		"io.Stderr":      os.Stderr,
+		"os.Stdout":      os.Stdout,
+		"os.Stderr":      os.Stderr,
 		"ioutil.Discard": ioutil.Discard,
 	}
 	logger := LevelLogger{

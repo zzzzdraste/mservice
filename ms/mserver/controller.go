@@ -299,7 +299,7 @@ func EtcdGetValueForTheKey(c *common.Cluster, logger myLog.LevelLogger) http.Han
 		if key == "" {
 			output = generateErrorPayload(transID, http.StatusBadRequest,
 				fmt.Errorf("the query %v contains empty value for the key or the key param is missing", r.URL))
-			logger.Error.Printf("http server: %v: /etcdSet call cant be processes, no key supplied in %v", transID, r.URL)
+			logger.Error.Printf("http server: %v: /etcdGet call cant be processes, no key supplied in %v", transID, r.URL)
 			w.Write(output)
 			return
 		}
@@ -320,7 +320,7 @@ func EtcdGetValueForTheKey(c *common.Cluster, logger myLog.LevelLogger) http.Han
 			logger.Error.Printf("http server: %v: error getting the value for the key %v: %v\n", transID, key, err)
 		} else {
 
-			var response common.EtcdSetCommandResponse
+			var response common.EtcdGetCommandResponse
 			err = common.Convert(data, &response)
 			output, err = json.MarshalIndent(response, "", "    ")
 			if err != nil {
@@ -381,7 +381,7 @@ func EtcdSetKeyValuePair(c *common.Cluster, logger myLog.LevelLogger) http.Handl
 				return
 			}
 
-			var setResponse common.EtcdSetCommandResponse
+			var setResponse common.EtcdGetCommandResponse
 			err = common.Convert(data, &setResponse)
 			output, err = json.MarshalIndent(setResponse, "", "    ")
 			if err != nil {

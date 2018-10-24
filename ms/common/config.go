@@ -25,8 +25,10 @@ type MSEndpoints struct {
 
 // Service contains all the data that relates to the actual service
 type Service struct {
-	RedisHost     string `json:"redis_server_ip"`
-	RedisPort     string `json:"redis_server_port"`
+	RedisEtcdHost string `json:"redis_server_ip"`
+	RedisHost     string
+	RedisEtcdPort string `json:"redis_server_port"`
+	RedisPort     string
 	OrderSetName  string `json:"redis_server_order_set"`
 	OrderListName string `json:"redis_server_order_list"`
 	WaitTime      int    `json:"order_check_wait_time"`

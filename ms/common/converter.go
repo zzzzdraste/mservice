@@ -57,8 +57,8 @@ type EtcdClusterMember struct {
 	ClientURLs []string `json:"clientURLs"`
 }
 
-// EtcdSetCommandResponse contains a struct that allows to unmarshal the repsonse from Etcd server for executing Set(key:value) pair
-type EtcdSetCommandResponse struct {
+// EtcdGetCommandResponse contains a struct that allows to unmarshal the repsonse from Etcd server for executing Set(key:value) and Get pair
+type EtcdGetCommandResponse struct {
 	Action   string   `json:"action"`
 	Node     EtcdNode `json:"node"`
 	PrevNode EtcdNode `json:"prevNode,omitempty"`
