@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -353,6 +354,10 @@ func (c Command) GetValue() interface{} {
 // Unmarshal is a function that takes a byte array as an input and tries to unmarhsal it to
 // the supported RESP object(s)
 func Unmarshal(data []byte) (Marshaller, error) {
+	if data == nil || len(data) == 0 {
+		return nil, errors.New("redis unmarshaller: the data byte array is nil or empty")
+	}
+
 	respType := string(data[0])
 
 	if respType == ErrorPrefix.toString() {

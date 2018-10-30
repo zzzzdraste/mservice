@@ -42,5 +42,6 @@ func InitLogger(traceHandle, infoHandle, warningHandle, errorHandle string) Leve
 		Warning: log.New(mapping[warningHandle], "WARNING : ", log.LstdFlags|log.Lshortfile),
 		Error:   log.New(mapping[errorHandle], "ERROR : ", log.LstdFlags|log.Lshortfile),
 	}
+
 	return logger
 }

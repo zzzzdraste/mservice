@@ -15,6 +15,7 @@ var (
 	numberOfOrdersMovedToList      = expvar.NewInt("number_of_successful_order_list_inserts")
 	numberOfFailedRedisZSETInserts = expvar.NewInt("number_of_failed_order_ZSET_inserts")
 	numberOfFailedRedisListInserts = expvar.NewInt("number_of_failed_order_list_inserts")
+	redisDowntime                  = expvar.NewInt("number_of_failed_redis_connects")
 )
 
 /*
@@ -38,7 +39,7 @@ func StoreNewOrderInRedis(zsetName, dd, orderID string, redisClient *redis.Clien
 }
 
 // StartScheduler starts the scheduler process as a goroutine
-func StartScheduler(config *common.Config, logger customLog.LevelLogger) error {
+func StartScheduler(config *common.Config, logger customLog.LevelLogger) {
 	ch := make(chan redis.Marshaller, 5)
 	errCh := make(chan error)
 	go dueDateOrders(ch, errCh, config, logger)
@@ -52,7 +53,8 @@ func StartScheduler(config *common.Config, logger customLog.LevelLogger) error {
 				logger.Error.Printf("scheduler: error updating the order list %v with order %v: %v\n", config.Service.OrderListName, order, moveErr)
 			}
 		case err := <-errCh:
-			return err
+			redisDowntime.Add(1)
+			logger.Error.Println(err.Error())
 		}
 	}
 }
@@ -61,8 +63,9 @@ func StartScheduler(config *common.Config, logger customLog.LevelLogger) error {
 func moveDDOrderToProcessingQueue(order redis.Marshaller, logger customLog.LevelLogger, config *common.Config) error {
 	logger.Trace.Printf("scheduler: attempting to connect to the Redis server %v:%v\n", config.Service.RedisHost, config.Service.RedisPort)
 	redisClient, redisErr := redis.Connect(config.Service.RedisHost, config.Service.RedisPort)
+	defer redisClient.Conn.Close()
+
 	if redisErr != nil {
-		redisClient.Conn.Close()
 		return redisErr
 	}
 
@@ -94,40 +97,43 @@ func moveDDOrderToProcessingQueue(order redis.Marshaller, logger customLog.Level
 func dueDateOrders(ch chan redis.Marshaller, errCh chan error, config *common.Config, logger customLog.LevelLogger) {
 	stStr := redis.NewBulkStr("0")
 	zName := redis.NewBulkStr(config.Service.OrderSetName)
+	sleepTime := time.Duration(config.Service.WaitTime) * time.Second
 
 	for {
 		logger.Trace.Printf("scheduler: attempting to connect to the Redis server %v:%v\n", config.Service.RedisHost, config.Service.RedisPort)
 		redisClient, redisErr := redis.Connect(config.Service.RedisHost, config.Service.RedisPort)
 		if redisErr != nil {
-			redisClient.Conn.Close()
 			numberOfFailedRedisZSETInserts.Add(1)
 			errCh <- fmt.Errorf("scheduler: Redis client is unreachable: %v", redisErr)
+		} else {
+			defer redisClient.Conn.Close()
+
+			unixTS := strconv.FormatInt(time.Now().Unix(), 10)
+			endStr := redis.NewBulkStr(unixTS)
+			com := redis.NewCommand(redis.ZANGEBYSCORE, []redis.Marshaller{zName, stStr, endStr})
+			logger.Trace.Printf("scheduler: checking for orders with due date before %v\n", unixTS)
+
+			commStr := com.Marshal()
+			logger.Trace.Printf("scheduler: command constructed\n%v", commStr)
+			data, err := redisClient.SendReceive(commStr)
+			if err != nil {
+				numberOfFailedRedisZSETInserts.Add(1)
+				logger.Error.Printf("scheduler: call to get the list of orders to process failed: %v\n", err)
+			}
+
+			logger.Trace.Printf("scheduler: the call output is: \n%v", string(data[:]))
+			object, err := unmarshalTheResponse(data)
+			if err != nil {
+				numberOfFailedRedisZSETInserts.Add(1)
+				logger.Error.Printf("scheduler: call to get the list of orders to process failed: %v\n", err)
+			} else {
+				for _, elem := range object.(redis.ArrayType).Value {
+					ch <- elem
+				}
+			}
 		}
-		defer redisClient.Conn.Close()
 
-		unixTS := strconv.FormatInt(time.Now().Unix(), 10)
-		endStr := redis.NewBulkStr(unixTS)
-		com := redis.NewCommand(redis.ZANGEBYSCORE, []redis.Marshaller{zName, stStr, endStr})
-		logger.Trace.Printf("scheduler: checking for orders with due date before %v\n", unixTS)
-
-		data, err := redisClient.SendReceive(com.Marshal())
-		if err != nil {
-			numberOfFailedRedisZSETInserts.Add(1)
-			logger.Error.Printf("scheduler: call to get the list of orders to process failed: %v\n", err)
-		}
-
-		logger.Trace.Printf("scheduler: the call output is: \n%v", string(data[:]))
-		object, err := unmarshalTheResponse(data)
-		if err != nil {
-			numberOfFailedRedisZSETInserts.Add(1)
-			logger.Error.Printf("scheduler: call to get the list of orders to process failed: %v\n", err)
-		}
-
-		for _, elem := range object.(redis.ArrayType).Value {
-			ch <- elem
-		}
-
-		time.Sleep(time.Duration(config.Service.WaitTime) * time.Second)
+		time.Sleep(sleepTime)
 
 	}
 }

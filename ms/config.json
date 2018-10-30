@@ -15,15 +15,15 @@
     "http_server_port" : "8080",
 
     "_comment": "read timeout is the max time is should take to parse the request (body included) by the server before timing out",
-    "http_server_read_timeout" : 5,
+    "http_server_read_timeout" : 10,
 
     "_comment": "max time it should take for the server to generate the response",
     "http_server_write_timeout": 300,
 
     "_comment": "configuration of the logger - need to set the io.Writer (os.Stdout, os.Stderr, ioutil.Discard) handlers for each logging level",
     "logger": {
-        "Trace": "os.Stdout",
-        "Info": "os.Stdout",
+        "Trace": "ioutil.Discard",
+        "Info": "ioutil.Discard",
         "Warning": "ioutil.Discard",
         "Error": "os.Stdout"
     },
@@ -57,7 +57,7 @@
         "redis_server_order_list": "LORDERLIST",
 
         "_comment": "wait time between attempts to check on the orders that reached dd",
-        "order_check_wait_time": 300
+        "order_check_wait_time": 30
 
     },
 

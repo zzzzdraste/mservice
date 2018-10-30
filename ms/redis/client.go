@@ -19,11 +19,17 @@ type Client struct {
 	Conn *net.TCPConn
 }
 
+var addr *net.TCPAddr
+var client *Client
+
 // Connect connects to the specified IP and Port using the TCP connector
 func Connect(host string, port string) (*Client, error) {
-	addr, err := net.ResolveTCPAddr("tcp", host+":"+port)
-	if err != nil {
-		return nil, fmt.Errorf("redis client: invalid address (%v:%v) specified for TCP connection: %v", host, port, err)
+	if client == nil || client.TCPIP != host || client.TCPPort != port {
+		var err error
+		addr, err = net.ResolveTCPAddr("tcp", host+":"+port)
+		if err != nil {
+			return nil, fmt.Errorf("redis client: invalid address (%v:%v) specified for TCP connection: %v", host, port, err)
+		}
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
@@ -31,7 +37,7 @@ func Connect(host string, port string) (*Client, error) {
 		return nil, fmt.Errorf("redis client: error connecting to %v:%v over TCP: %v", host, port, err)
 	}
 
-	client := &Client{
+	client = &Client{
 		TCPIP:   host,
 		TCPPort: port,
 		Conn:    conn,

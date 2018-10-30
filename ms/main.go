@@ -83,7 +83,7 @@ func main() {
 	logger.Info.Println("routine to update the Etcd cluster information started, error channel created for critical errors propagation")
 
 	logger.Info.Println("routine scheduler service started")
-	startSchedulerService()
+	mserver.StartScheduler(&config, logger)
 
 	for {
 		select {
@@ -93,8 +93,8 @@ func main() {
 			panic(serverStatusErr)
 		case etcdMSRegistrationErr := <-chEtcdReg:
 			panic(etcdMSRegistrationErr)
-		case RedisEtcdRefreshErr := <-chRedisEtcdRefresh:
-			panic(RedisEtcdRefreshErr)
+		case redisEtcdRefreshErr := <-chRedisEtcdRefresh:
+			panic(redisEtcdRefreshErr)
 		}
 	}
 }
@@ -163,13 +163,6 @@ func registerMS(c *common.Cluster, ch chan error) {
 			time.Sleep(sleepTime * time.Second)
 		}
 	}()
-}
-
-func startSchedulerService() {
-	err := mserver.StartScheduler(&config, logger)
-	if err != nil {
-		panic(err)
-	}
 }
 
 // updateRedisClient is a goroutine to Get the Redis host and port from Etcd and update the config with the new values
